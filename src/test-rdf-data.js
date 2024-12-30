@@ -9,6 +9,11 @@ const rabbitTurtle = `
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
+
+ex:Alice rdf:type ex:Person ;
+    schema:name "Alice" ;
+    foaf:img <https://miro.medium.com/max/1100/1*xupcHn3b0jEFPkjvuH5Pbw.jpeg> .
+
 ex:WhiteRabbit schema:address ex:address ;
     foaf:img <https://miro.medium.com/max/720/1*HZazTjGg9EBSOoz34IN-tA.jpeg> ;
     rdfs:label "Coniglio bianco"@it ,
@@ -24,9 +29,6 @@ ex:address rdf:type schema:PostalAddress ;
                  "rabbit@hotmailz.com" ;
     schema:name "Postal address" .
 
-ex:Alice rdf:type ex:Person ;
-    schema:name "Alice" ;
-    foaf:img <https://miro.medium.com/max/1100/1*xupcHn3b0jEFPkjvuH5Pbw.jpeg> .
 
 
 ex:drinkTea schema:name "Drink tea" ;

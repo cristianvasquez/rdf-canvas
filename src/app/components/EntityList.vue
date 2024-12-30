@@ -27,8 +27,17 @@ function getLayoutedElements(nodes, edges, direction = 'LR') {
   const dagreGraph = new dagre.graphlib.Graph()
   dagreGraph.setDefaultEdgeLabel(() => ({}))
 
-  const nodeWidth = 200
-  const nodeHeight = 100
+  // Calculate dimensions for layout purposes only
+  function getNodeDimensions(node) {
+    const baseHeight = 40  // Header height
+    const rowHeight = 40   // Height per row
+    const width = 300      // Standard width
+    
+    // Calculate total height based on content
+    const totalHeight = baseHeight + (node.data.rows.length * rowHeight)
+    
+    return { width, height: totalHeight }
+  }
 
   // Configure the layout
   dagreGraph.setGraph({
@@ -39,9 +48,10 @@ function getLayoutedElements(nodes, edges, direction = 'LR') {
     edgesep: 80,
   })
 
-  // Add nodes to dagre
+  // Add nodes to dagre with their calculated dimensions
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight })
+    const dimensions = getNodeDimensions(node)
+    dagreGraph.setNode(node.id, dimensions)
   })
 
   // Add edges to dagre
@@ -52,16 +62,14 @@ function getLayoutedElements(nodes, edges, direction = 'LR') {
   // Let dagre do its magic
   dagre.layout(dagreGraph)
 
-  // Apply the layout to the nodes
+  // Apply only the positions to the nodes
   nodes.forEach((node) => {
     const nodeWithPosition = dagreGraph.node(node.id)
+    const dimensions = getNodeDimensions(node)
     node.position = {
-      x: nodeWithPosition.x - nodeWidth / 2,
-      y: nodeWithPosition.y - nodeHeight / 2,
+      x: nodeWithPosition.x - dimensions.width / 2,
+      y: nodeWithPosition.y - dimensions.height / 2,
     }
-
-    // Assign data back to node
-    return node
   })
 
   return { nodes, edges }
@@ -70,46 +78,34 @@ function getLayoutedElements(nodes, edges, direction = 'LR') {
 function convertToFlowData(entities) {
   const newNodes = []
   const newEdges = []
-  const processedNodes = new Set()
 
-  function processEntity(entity) {
-    if (processedNodes.has(entity.term.value)) {
-      return
-    }
-    processedNodes.add(entity.term.value)
-
-    // Create node for this entity with type 'custom'
+  // Only create nodes for the root entities
+  entities.forEach((entity) => {
+    // Create node for this root entity
     newNodes.push({
       id: entity.term.value,
       type: 'custom',
       position: { x: 0, y: 0 }, // Position will be set by dagre
       data: { 
         types: entity.types,
+        rows: entity.rows,
       },
     })
 
-    // Process each row (predicate and its values)
+    // Create edges only between root entities
     entity.rows.forEach((row) => {
       row.values.forEach((value) => {
-        // Create node for the value if it hasn't been processed
-        if (!processedNodes.has(value.term.value)) {
-          processEntity(value)
+        // Only create edge if the target is also a root entity
+        if (entities.some(e => e.term.value === value.term.value)) {
+          newEdges.push({
+            id: `${entity.term.value}-${row.predicate.value}-${value.term.value}`,
+            source: entity.term.value,
+            target: value.term.value,
+            label: row.predicate.value.split('#').pop(),
+          })
         }
-
-        // Create edge from entity to value
-        newEdges.push({
-          id: `${entity.term.value}-${row.predicate.value}-${value.term.value}`,
-          source: entity.term.value,
-          target: value.term.value,
-          label: row.predicate.value.split('#').pop(),
-        })
       })
     })
-  }
-
-  // Start processing from root entities
-  entities.forEach((entity) => {
-    processEntity(entity)
   })
 
   // Apply layout
