@@ -2,7 +2,6 @@
 import { Handle, Position } from '@vue-flow/core'
 import Term from './Term.vue'
 import Row from './Row.vue'
-import { toRaw } from 'vue'
 
 const props = defineProps({
   data: Object,
@@ -12,30 +11,30 @@ const props = defineProps({
 const entityData = {
   term: {
     termType: 'NamedNode',
-    value: props.id
+    value: props.id,
   },
   types: props.data.types,
-  rows: props.data.rows || []
+  rows: props.data.rows || [],
 }
 </script>
 
 <template>
-  <div class="flow-node">
-    <Handle type="source" :position="Position.Right" />
+  <div class="flow-node" :data-id="props.id">
+    <Handle type="source" :position="Position.Right"/>
 
     <div class="entity">
       <div class="entity-header">
-        <Term :term="entityData.term" />
+        <Term :term="entityData.term"/>
       </div>
 
       <div class="rows">
         <template v-for="row in entityData.rows" :key="row.predicate.value">
-          <Row :row="row" />
+          <Row :row="row"/>
         </template>
       </div>
     </div>
 
-    <Handle type="target" :position="Position.Left" />
+    <Handle type="target" :position="Position.Left"/>
   </div>
 </template>
 
@@ -51,8 +50,6 @@ const entityData = {
   border-top: 1px solid var(--border);
   border-left: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-
-
   background: white;
 }
 
@@ -73,7 +70,7 @@ const entityData = {
   border-top: 1px solid var(--border);
 }
 
-.flow-node .rows > :nth-child(2n) {
+.rows > :nth-child(2n) {
   border-top: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.01);
 }
@@ -96,4 +93,6 @@ const entityData = {
 .vue-flow__handle:hover {
   background: #666;
 }
+
+
 </style>

@@ -7,29 +7,13 @@ const tools = {
   typeOf: (type) => {
     return {
       ignoreNamedGraphs: true,
+      maxDepth: 10,
       matchers: [
         { // Priority for entities of type
           predicate: ns.rdf.type,
           object: type,
         },
         {}, // Everything else
-      ],
-    }
-  },
-  focusOn: (term) => {
-    return {
-      ignoreNamedGraphs: true,
-      maxDepth: 1,
-      matchers: [
-        {
-          subject: term,
-        },
-        {
-          predicate: term,
-        },
-        {
-          object: term,
-        },
       ],
     }
   },
@@ -54,17 +38,9 @@ export const useStore = defineStore('state', () => {
     entities.value = getEntities(currentDataset.value, options)
   }
 
-  function focusOn (term) {
-    const options = tools.focusOn(term)
-    currentFocus.value = term
-    entities.value = getEntities(currentDataset.value, options)
-  }
-
   return {
     entities,
     setDataset,
-    focusOn,
     reset,
-    currentFocus,
   }
 })

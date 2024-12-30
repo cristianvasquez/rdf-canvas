@@ -1,10 +1,14 @@
 <script setup>
-import { VueFlow } from '@vue-flow/core'
 import '@vue-flow/core/dist/style.css'
-import Entity from './Entity.vue'
 import FlowNode from './FlowNode.vue'
-import { ref, watch } from 'vue'
-import dagre from 'dagre'
+import { markRaw, nextTick, ref, watch } from 'vue'
+import { useLayout } from './layout/dagrelayout.js'
+import Icon from './Icon.vue'
+import { Background } from '@vue-flow/background'
+import { Panel, VueFlow, useVueFlow } from '@vue-flow/core'
+
+const { layout } = useLayout()
+const { fitView } = useVueFlow()
 
 const props = defineProps({
   entities: Array,
@@ -15,78 +19,34 @@ const nodes = ref([])
 const edges = ref([])
 
 // Basic layout configuration
-const defaultViewport = { x: 0, y: 0, zoom: 1.5 }
+const defaultViewport = { x: 0, y: 0, zoom: 1.0 }
 
 // Add node types configuration
 const nodeTypes = {
-  custom: FlowNode
+  custom: markRaw(FlowNode),
+
 }
 
-// Dagre graph layout configuration
-function getLayoutedElements(nodes, edges, direction = 'LR') {
-  const dagreGraph = new dagre.graphlib.Graph()
-  dagreGraph.setDefaultEdgeLabel(() => ({}))
+async function layoutGraph (direction) {
+  nodes.value = layout(nodes.value, edges.value, direction)
 
-  // Calculate dimensions for layout purposes only
-  function getNodeDimensions(node) {
-    const baseHeight = 40  // Header height
-    const rowHeight = 40   // Height per row
-    const width = 300      // Standard width
-    
-    // Calculate total height based on content
-    const totalHeight = baseHeight + (node.data.rows.length * rowHeight)
-    
-    return { width, height: totalHeight }
-  }
-
-  // Configure the layout
-  dagreGraph.setGraph({
-    rankdir: direction,
-    ranker: 'network-simplex',
-    nodesep: 80,
-    ranksep: 200,
-    edgesep: 80,
+  await nextTick(() => {
+    fitView()
   })
-
-  // Add nodes to dagre with their calculated dimensions
-  nodes.forEach((node) => {
-    const dimensions = getNodeDimensions(node)
-    dagreGraph.setNode(node.id, dimensions)
-  })
-
-  // Add edges to dagre
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target)
-  })
-
-  // Let dagre do its magic
-  dagre.layout(dagreGraph)
-
-  // Apply only the positions to the nodes
-  nodes.forEach((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id)
-    const dimensions = getNodeDimensions(node)
-    node.position = {
-      x: nodeWithPosition.x - dimensions.width / 2,
-      y: nodeWithPosition.y - dimensions.height / 2,
-    }
-  })
-
-  return { nodes, edges }
 }
 
-function convertToFlowData(entities) {
-  const newNodes = []
-  const newEdges = []
+function convertToFlowData (entities) {
+  const nodes = []
+  const edges = []
 
   // Only create nodes for the root entities
   entities.forEach((entity) => {
     // Create node for this root entity
-    newNodes.push({
+    nodes.push({
       id: entity.term.value,
       type: 'custom',
       position: { x: 0, y: 0 }, // Position will be set by dagre
-      data: { 
+      data: {
         types: entity.types,
         rows: entity.rows,
       },
@@ -97,7 +57,7 @@ function convertToFlowData(entities) {
       row.values.forEach((value) => {
         // Only create edge if the target is also a root entity
         if (entities.some(e => e.term.value === value.term.value)) {
-          newEdges.push({
+          edges.push({
             id: `${entity.term.value}-${row.predicate.value}-${value.term.value}`,
             source: entity.term.value,
             target: value.term.value,
@@ -108,11 +68,7 @@ function convertToFlowData(entities) {
     })
   })
 
-  // Apply layout
-  const { nodes: layoutedNodes, edges: layoutedEdges } = 
-    getLayoutedElements(newNodes, newEdges)
-
-  return { nodes: layoutedNodes, edges: layoutedEdges }
+  return { nodes, edges }
 }
 
 // Watch for changes in entities prop and update flow data
@@ -127,22 +83,26 @@ watch(() => props.entities, (newEntities) => {
 
 <template>
   <div class="container">
-    <!-- Original list view -->
-    <div class="entities">
-      <template v-for="ptr in entities" :key="ptr.term.value">
-        <Entity :pointer="ptr"/>
-      </template>
-    </div>
-
     <!-- New flow view -->
     <div class="flowview">
-      <VueFlow
-        v-model="nodes"
-        v-model:edges="edges"
-        :default-viewport="defaultViewport"
-        :node-types="nodeTypes"
-        fit-view-on-init
-      />
+      <VueFlow :nodes="nodes" :edges="edges"
+               :default-viewport="defaultViewport"
+               :node-types="nodeTypes"
+               @nodes-initialized="layoutGraph('LR')">
+        <Background/>
+
+        <Panel class="process-panel" position="top-right">
+          <div class="layout-panel">
+            <button title="set horizontal layout" @click="layoutGraph('LR')">
+              <Icon name="horizontal"/>
+            </button>
+
+            <button title="set vertical layout" @click="layoutGraph('TB')">
+              <Icon name="vertical"/>
+            </button>
+          </div>
+        </Panel>
+      </VueFlow>
     </div>
   </div>
 </template>
@@ -164,12 +124,12 @@ body {
   flex-direction: column;
   gap: 20px;
   border-right: 1px solid var(--border);
-  width: 50%;
+  width: 30%;
   overflow-y: auto;
 }
 
 .flowview {
-  width: 50%;
+  width: 100%;
   height: 100%;
 }
 </style>

@@ -2,7 +2,6 @@
 import { ArrowUp } from '@vicons/ionicons5'
 import { NIcon } from 'naive-ui'
 import { onMounted, ref, toRaw } from 'vue'
-import ToolIcon from './ToolIcon.vue'
 import Row from './Row.vue'
 import Term from './Term.vue'
 
@@ -23,16 +22,12 @@ onMounted(() => {
   <template v-if="pointer.rows.length">
     <div class="entity" :id="pointer.term.value">
       <div class="entity-header">
-        <Term :term="pointer.term">
-          <ToolIcon :term="toRaw(pointer.term)"/>
-        </Term>
-        <slot></slot>
+        <Term :term="pointer.term"/>
       </div>
       <div class="rows">
         <template v-for="row of pointer.rows">
-          <Row :row="row">
-            <ToolIcon :term="toRaw(row.predicate)"/>
-          </Row>
+          <Row :row="row"/>
+
         </template>
       </div>
     </div>
@@ -47,9 +42,7 @@ onMounted(() => {
       </a>
     </template>
     <template v-else>
-      <Term :term="pointer.term">
-        <ToolIcon :term="toRaw(pointer.term)"/>
-      </Term>
+      <Term :term="pointer.term"/>
     </template>
 
   </template>
