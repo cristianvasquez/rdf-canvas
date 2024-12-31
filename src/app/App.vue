@@ -16,7 +16,6 @@ onMounted(() => {
 
 })
 
-const name = ref()
 </script>
 
 <template>

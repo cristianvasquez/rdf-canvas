@@ -1,14 +1,17 @@
 <script setup>
-import { VueFlow } from '@vue-flow/core'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
 import '@vue-flow/core/dist/style.css'
 import Entity from './Entity.vue'
 import FlowNode from './FlowNode.vue'
-import { ref, watch } from 'vue'
-import dagre from 'dagre'
+import { markRaw, nextTick, ref, watch } from 'vue'
+import { useLayout } from '../layout/dagrelayout.js'
 
 const props = defineProps({
   entities: Array,
 })
+
+const { layout } = useLayout()
+const { fitView } = useVueFlow()
 
 // Initial empty flow state
 const nodes = ref([])
@@ -19,100 +22,63 @@ const defaultViewport = { x: 0, y: 0, zoom: 1.5 }
 
 // Add node types configuration
 const nodeTypes = {
-  custom: FlowNode
+  custom: markRaw(FlowNode),
 }
 
-// Dagre graph layout configuration
-function getLayoutedElements(nodes, edges, direction = 'LR') {
-  const dagreGraph = new dagre.graphlib.Graph()
-  dagreGraph.setDefaultEdgeLabel(() => ({}))
+async function layoutGraph (direction) {
+  nodes.value = layout(nodes.value, edges.value, direction)
 
-  // Calculate dimensions for layout purposes only
-  function getNodeDimensions(node) {
-    const baseHeight = 40  // Header height
-    const rowHeight = 40   // Height per row
-    const width = 300      // Standard width
-    
-    // Calculate total height based on content
-    const totalHeight = baseHeight + (node.data.rows.length * rowHeight)
-    
-    return { width, height: totalHeight }
-  }
-
-  // Configure the layout
-  dagreGraph.setGraph({
-    rankdir: direction,
-    ranker: 'network-simplex',
-    nodesep: 80,
-    ranksep: 200,
-    edgesep: 80,
+  await nextTick(() => {
+    fitView()
   })
+}
 
-  // Add nodes to dagre with their calculated dimensions
-  nodes.forEach((node) => {
-    const dimensions = getNodeDimensions(node)
-    dagreGraph.setNode(node.id, dimensions)
-  })
+function convertToFlowData (entities) {
+  const nodes = []
+  const edges = []
+  const processedNodes = new Set()
 
-  // Add edges to dagre
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target)
-  })
-
-  // Let dagre do its magic
-  dagre.layout(dagreGraph)
-
-  // Apply only the positions to the nodes
-  nodes.forEach((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id)
-    const dimensions = getNodeDimensions(node)
-    node.position = {
-      x: nodeWithPosition.x - dimensions.width / 2,
-      y: nodeWithPosition.y - dimensions.height / 2,
+  function processEntity (entity) {
+    if (processedNodes.has(entity.term.value)) {
+      return
     }
-  })
+    processedNodes.add(entity.term.value)
 
-  return { nodes, edges }
-}
-
-function convertToFlowData(entities) {
-  const newNodes = []
-  const newEdges = []
-
-  // Only create nodes for the root entities
-  entities.forEach((entity) => {
-    // Create node for this root entity
-    newNodes.push({
+    // Create node for this entity with type 'custom'
+    nodes.push({
       id: entity.term.value,
       type: 'custom',
       position: { x: 0, y: 0 }, // Position will be set by dagre
-      data: { 
+      data: {
         types: entity.types,
-        rows: entity.rows,
       },
     })
 
-    // Create edges only between root entities
+    // Process each row (predicate and its values)
     entity.rows.forEach((row) => {
       row.values.forEach((value) => {
-        // Only create edge if the target is also a root entity
-        if (entities.some(e => e.term.value === value.term.value)) {
-          newEdges.push({
-            id: `${entity.term.value}-${row.predicate.value}-${value.term.value}`,
-            source: entity.term.value,
-            target: value.term.value,
-            label: row.predicate.value.split('#').pop(),
-          })
+        // Create node for the value if it hasn't been processed
+        if (!processedNodes.has(value.term.value)) {
+          processEntity(value)
         }
+
+        // Create edge from entity to value
+        edges.push({
+          id: `${entity.term.value}-${row.predicate.value}-${value.term.value}`,
+          source: entity.term.value,
+          target: value.term.value,
+          label: row.predicate.value.split('#').pop(),
+        })
       })
     })
+  }
+
+  // Start processing from root entities
+  entities.forEach((entity) => {
+    processEntity(entity)
   })
 
-  // Apply layout
-  const { nodes: layoutedNodes, edges: layoutedEdges } = 
-    getLayoutedElements(newNodes, newEdges)
-
-  return { nodes: layoutedNodes, edges: layoutedEdges }
+  return { nodes, edges }
 }
 
 // Watch for changes in entities prop and update flow data
@@ -136,13 +102,12 @@ watch(() => props.entities, (newEntities) => {
 
     <!-- New flow view -->
     <div class="flowview">
-      <VueFlow
-        v-model="nodes"
-        v-model:edges="edges"
-        :default-viewport="defaultViewport"
-        :node-types="nodeTypes"
-        fit-view-on-init
-      />
+      <VueFlow :nodes="nodes" :edges="edges"
+               :default-viewport="defaultViewport"
+               :node-types="nodeTypes"
+               @nodes-initialized="layoutGraph('LR')"/>
+
+
     </div>
   </div>
 </template>
