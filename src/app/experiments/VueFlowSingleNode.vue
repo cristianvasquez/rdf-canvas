@@ -21,7 +21,7 @@ const defaultViewport = { x: 0, y: 0, zoom: 1.5 }
 
 // Add node types configuration
 const nodeTypes = {
-  custom: markRaw(FlowNode),
+  custom: FlowNode,
 }
 
 async function layoutGraph (direction) {
@@ -86,6 +86,7 @@ watch(() => props.entities, (newEntities) => {
     const flowData = convertToFlowData(newEntities)
     nodes.value = flowData.nodes
     edges.value = flowData.edges
+    layoutGraph('LR')
   }
 }, { immediate: true })
 </script>
