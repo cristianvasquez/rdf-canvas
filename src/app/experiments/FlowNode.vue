@@ -1,8 +1,7 @@
 <script setup>
 import { Handle, Position } from '@vue-flow/core'
-import Term from './Term.vue'
-import Row from './Row.vue'
-import { toRaw } from 'vue'
+import Term from '../components/Term.vue'
+import Row from '../components/Row.vue'
 
 const props = defineProps({
   data: Object,
@@ -12,30 +11,30 @@ const props = defineProps({
 const entityData = {
   term: {
     termType: 'NamedNode',
-    value: props.id
+    value: props.id,
   },
   types: props.data.types,
-  rows: props.data.rows || []
+  rows: props.data.rows || [],
 }
 </script>
 
 <template>
   <div class="flow-node">
-    <Handle type="source" :position="Position.Right" />
+    <Handle type="source" :position="Position.Right"/>
 
     <div class="entity">
       <div class="entity-header">
-        <Term :term="entityData.term" />
+        <Term :term="entityData.term"/>
       </div>
 
       <div class="rows">
         <template v-for="row in entityData.rows" :key="row.predicate.value">
-          <Row :row="row" />
+          <Row :row="row"/>
         </template>
       </div>
     </div>
 
-    <Handle type="target" :position="Position.Left" />
+    <Handle type="target" :position="Position.Left"/>
   </div>
 </template>
 
